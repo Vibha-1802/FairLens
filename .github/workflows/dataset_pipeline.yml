@@ -1,4 +1,4 @@
-name: Dataset Processing Pipeline (External API)
+name: Dataset Processing Pipeline (Local Self-Hosted)
 
 on:
   push:
@@ -8,9 +8,8 @@ on:
 
 jobs:
   process-dataset:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    # Use your local machine
+    runs-on: self-hosted
 
     steps:
       - name: Checkout Data Repo
@@ -18,51 +17,44 @@ jobs:
         with:
           path: data_repo
 
-      - name: Checkout API Repo (BiasModel)
-        uses: actions/checkout@v3
-        with:
-          repository: vibha-1802/BiasModel
-          path: app_repo
-
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-
-      - name: Install dependencies
+      - name: Start Services (API & LLM)
         run: |
-          pip install -r app_repo/requirements.txt
-          if [ -f app_repo/backend/bias_detection_service/requirements.txt ]; then
-            pip install -r app_repo/backend/bias_detection_service/requirements.txt
-          fi
+          echo "Starting Bias Detection API (Port 8000)..."
+          cd c:\Users\vibha\Projects\exe_2\backend\bias_detection_service
+          Start-Process -FilePath ".\venv\Scripts\python.exe" -ArgumentList "-m uvicorn app.main:app --host 127.0.0.1 --port 8000"
 
-      - name: Start Bias Detection API
-        run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)/app_repo/backend/bias_detection_service
-          cd app_repo/backend/bias_detection_service
-          uvicorn app.main:app --host 127.0.0.1 --port 8000 &
-        shell: bash
+          echo "Starting LLM Service (Port 8001)..."
+          # Using the same venv or adjust if LLM has its own
+          cd c:\Users\vibha\Projects\exe_2\backend\LLM\api
+          Start-Process -FilePath "c:\Users\vibha\Projects\exe_2\backend\bias_detection_service\venv\Scripts\python.exe" -ArgumentList "-m uvicorn bias_api:app --host 127.0.0.1 --port 8001"
+        shell: pwsh
 
-      - name: Wait for API
-        run: sleep 10
+      - name: Wait for Services to initialize
+        run: Start-Sleep -s 10
+        shell: pwsh
 
       - name: Process Datasets
         run: |
-          # Use the script from the App Repo to process data in the Data Repo
-          python app_repo/scripts/dataset_pipeline.py \
-            --preprocess data_repo/preprocess_data \
-            --postprocess data_repo/post_processed_data
+          # Run the pipeline script using the local venv python
+          & "c:\Users\vibha\Projects\exe_2\backend\bias_detection_service\venv\Scripts\python.exe" `
+            "c:\Users\vibha\Projects\exe_2\scripts\dataset_pipeline.py" `
+            --preprocess data_repo/preprocess_data `
+            --postprocess data_repo/post_processed_data `
+            --mode full
+        shell: pwsh
 
-      - name: Commit and Push changes to Data Repo
+      - name: Commit and Push results to FairLens
         run: |
           cd data_repo
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add preprocess_data/ post_processed_data/
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Auto-processed datasets via BiasModel API"
-            git push
-          fi
+          
+          $status = git status --porcelain
+          if ($status) {
+              git commit -m "Auto-processed datasets (Local Self-Hosted)"
+              git push
+          } else {
+              echo "No changes to commit"
+          }
+        shell: pwsh
