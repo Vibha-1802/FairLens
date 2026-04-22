@@ -15,21 +15,20 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: data_repo
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Cleanup and Start Services
         run: |
-          echo "Stopping any old Python processes..."
+          echo "Stopping old processes..."
           Get-Process | Where-Object { $_.ProcessName -like "*python*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 
           $apiPath = "c:\Users\vibha\Projects\exe_2\backend\bias_detection_service"
           $llmPath = "c:\Users\vibha\Projects\exe_2\backend\LLM\api"
           $pythonPath = "$apiPath\venv\Scripts\python.exe"
 
-          echo "Starting Bias Detection API (Port 8000)..."
+          echo "Starting API and LLM..."
           cd $apiPath
           Start-Process -FilePath $pythonPath -ArgumentList "-m uvicorn app.main:app --host 127.0.0.1 --port 8000"
-
-          echo "Starting LLM Service (Port 8001)..."
           cd $llmPath
           Start-Process -FilePath $pythonPath -ArgumentList "-m uvicorn bias_api:app --host 127.0.0.1 --port 8001"
         shell: powershell
@@ -42,37 +41,28 @@ jobs:
         run: |
           $pythonPath = "c:\Users\vibha\Projects\exe_2\backend\bias_detection_service\venv\Scripts\python.exe"
           $scriptPath = "c:\Users\vibha\Projects\exe_2\scripts\dataset_pipeline.py"
-          
           $currentDir = Get-Location
           $prePath = "$currentDir\data_repo\preprocess_data"
           $postPath = "$currentDir\data_repo\post_processed_data"
 
-          echo "--- RUNNING SCRIPT ---"
           & $pythonPath $scriptPath --preprocess "$prePath" --postprocess "$postPath" --mode full
-          
-          if ($LASTEXITCODE -ne 0) {
-              echo "Script failed with exit code $LASTEXITCODE"
-              exit $LASTEXITCODE
-          }
         shell: powershell
 
       - name: Commit and Push results
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd data_repo
-          echo "--- GIT STATUS ---"
-          git status
-          
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add preprocess_data/ post_processed_data/
           
+          # Use the token for authentication in the push
+          git remote set-url origin "https://x-access-token:${env:GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          
+          git add .
           $status = git status --porcelain
           if ($status) {
-              echo "Changes detected, committing..."
               git commit -m "Auto-processed datasets (Local Self-Hosted)"
-              echo "Pushing to GitHub..."
-              git push
-          } else {
-              echo "No changes found to commit."
+              git push origin HEAD:${{ github.ref_name }}
           }
         shell: powershell
