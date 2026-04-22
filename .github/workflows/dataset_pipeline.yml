@@ -15,36 +15,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: data_repo
-          # Use your new secret here
           token: ${{ secrets.MY_PAT }}
-
-      - name: Cleanup and Start Services
-        run: |
-          echo "Restarting services..."
-          Get-Process | Where-Object { $_.ProcessName -like "*python*" } | Stop-Process -Force -ErrorAction SilentlyContinue
-
-          $apiPath = "c:\Users\vibha\Projects\exe_2\backend\bias_detection_service"
-          $llmPath = "c:\Users\vibha\Projects\exe_2\backend\LLM\api"
-          $pythonPath = "$apiPath\venv\Scripts\python.exe"
-
-          cd $apiPath
-          Start-Process -FilePath $pythonPath -ArgumentList "-m uvicorn app.main:app --host 127.0.0.1 --port 8000"
-          cd $llmPath
-          Start-Process -FilePath $pythonPath -ArgumentList "-m uvicorn bias_api:app --host 127.0.0.1 --port 8001"
-        shell: powershell
-
-      - name: Wait for Services
-        run: Start-Sleep -s 15
-        shell: powershell
 
       - name: Process Datasets
         run: |
+          # Use your local venv python and script
           $pythonPath = "c:\Users\vibha\Projects\exe_2\backend\bias_detection_service\venv\Scripts\python.exe"
           $scriptPath = "c:\Users\vibha\Projects\exe_2\scripts\dataset_pipeline.py"
+          
           $currentDir = Get-Location
           $prePath = "$currentDir\data_repo\preprocess_data"
           $postPath = "$currentDir\data_repo\post_processed_data"
 
+          echo "Processing data in: $prePath"
           & $pythonPath $scriptPath --preprocess "$prePath" --postprocess "$postPath" --mode full
         shell: powershell
 
