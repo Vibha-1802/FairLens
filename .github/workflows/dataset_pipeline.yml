@@ -31,6 +31,8 @@ jobs:
         shell: powershell
 
       - name: Commit and Push results
+        env:
+          MY_PAT: ${{ secrets.MY_PAT }}
         run: |
           cd data_repo
           git config user.name "Vibha-1802"
@@ -41,9 +43,13 @@ jobs:
           if ($status) {
               git commit -m "Auto-processed datasets (Local Self-Hosted) [skip ci]"
               
-              echo "Force pushing results to avoid conflicts..."
-              # Using --force to ensure the results always make it to GitHub
-              git push origin HEAD:main --force
+              echo "Pushing results with Token..."
+              # This forces the push using your new Personal Access Token
+              git push "https://x-access-token:${env:MY_PAT}@github.com/Vibha-1802/FairLens.git" HEAD:main --force
+          } else {
+              echo "No changes found to commit."
           }
         shell: powershell
+
+
 
