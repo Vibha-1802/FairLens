@@ -16,18 +16,17 @@ jobs:
         with:
           path: data_repo
           token: ${{ secrets.MY_PAT }}
+          fetch-depth: 0 # Get full history for rebase
 
       - name: Process Datasets
         run: |
-          # Use your local venv python and script
           $pythonPath = "c:\Users\vibha\Projects\exe_2\backend\bias_detection_service\venv\Scripts\python.exe"
           $scriptPath = "c:\Users\vibha\Projects\exe_2\scripts\dataset_pipeline.py"
-          
           $currentDir = Get-Location
           $prePath = "$currentDir\data_repo\preprocess_data"
           $postPath = "$currentDir\data_repo\post_processed_data"
 
-          echo "Processing data in: $prePath"
+          echo "Running Script..."
           & $pythonPath $scriptPath --preprocess "$prePath" --postprocess "$postPath" --mode full
         shell: powershell
 
@@ -41,6 +40,11 @@ jobs:
           $status = git status --porcelain
           if ($status) {
               git commit -m "Auto-processed datasets (Local Self-Hosted)"
+              
+              echo "Pulling latest changes to avoid conflicts..."
+              git pull --rebase origin main
+              
+              echo "Pushing results..."
               git push origin HEAD:main
           }
         shell: powershell
