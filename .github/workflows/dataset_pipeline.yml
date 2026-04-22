@@ -15,8 +15,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: data_repo
-          # We don't need the token here if we use your local git
-          persist-credentials: false 
+          # Use your new secret here
+          token: ${{ secrets.MY_PAT }}
 
       - name: Cleanup and Start Services
         run: |
@@ -51,15 +51,13 @@ jobs:
       - name: Commit and Push results
         run: |
           cd data_repo
-          # Use YOUR local git identity
-          git config --local user.name "Vibha-1802"
-          git config --local user.email "vibha.1802@gmail.com"
+          git config user.name "Vibha-1802"
+          git config user.email "vibha.1802@gmail.com"
           
           git add .
           $status = git status --porcelain
           if ($status) {
               git commit -m "Auto-processed datasets (Local Self-Hosted)"
-              # This will use your stored Windows credentials
               git push origin HEAD:main
           }
         shell: powershell
