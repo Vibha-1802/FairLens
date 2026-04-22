@@ -18,7 +18,7 @@ jobs:
 
       - name: Cleanup and Start Services
         run: |
-          echo "Cleaning up old processes..."
+          echo "Stopping any old Python processes..."
           Get-Process | Where-Object { $_.ProcessName -like "*python*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 
           $apiPath = "c:\Users\vibha\Projects\exe_2\backend\bias_detection_service"
@@ -47,22 +47,32 @@ jobs:
           $prePath = "$currentDir\data_repo\preprocess_data"
           $postPath = "$currentDir\data_repo\post_processed_data"
 
-          echo "Running processing script..."
+          echo "--- RUNNING SCRIPT ---"
           & $pythonPath $scriptPath --preprocess "$prePath" --postprocess "$postPath" --mode full
+          
+          if ($LASTEXITCODE -ne 0) {
+              echo "Script failed with exit code $LASTEXITCODE"
+              exit $LASTEXITCODE
+          }
         shell: powershell
 
       - name: Commit and Push results
         run: |
           cd data_repo
+          echo "--- GIT STATUS ---"
+          git status
+          
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add preprocess_data/ post_processed_data/
           
           $status = git status --porcelain
           if ($status) {
+              echo "Changes detected, committing..."
               git commit -m "Auto-processed datasets (Local Self-Hosted)"
+              echo "Pushing to GitHub..."
               git push
           } else {
-              echo "No changes to commit"
+              echo "No changes found to commit."
           }
         shell: powershell
