@@ -16,16 +16,15 @@ jobs:
         with:
           path: data_repo
 
-      - name: Verify Paths and Start Services
+      - name: Cleanup and Start Services
         run: |
+          echo "Cleaning up old processes on port 8000 and 8001..."
+          # This kills any existing uvicorn/python processes to start fresh
+          Get-Process | Where-Object { $_.ProcessName -like "*python*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+
           $apiPath = "c:\Users\vibha\Projects\exe_2\backend\bias_detection_service"
           $llmPath = "c:\Users\vibha\Projects\exe_2\backend\LLM\api"
           $pythonPath = "$apiPath\venv\Scripts\python.exe"
-
-          echo "Checking if paths exist..."
-          if (!(Test-Path $apiPath)) { throw "API Path not found: $apiPath" }
-          if (!(Test-Path $llmPath)) { throw "LLM Path not found: $llmPath" }
-          if (!(Test-Path $pythonPath)) { throw "Python venv not found: $pythonPath" }
 
           echo "Starting Bias Detection API (Port 8000)..."
           cd $apiPath
@@ -36,7 +35,7 @@ jobs:
           Start-Process -FilePath $pythonPath -ArgumentList "-m uvicorn bias_api:app --host 127.0.0.1 --port 8001"
         shell: pwsh
 
-      - name: Wait for Services to initialize
+      - name: Wait for Services
         run: Start-Sleep -s 15
         shell: pwsh
 
@@ -45,14 +44,18 @@ jobs:
           $pythonPath = "c:\Users\vibha\Projects\exe_2\backend\bias_detection_service\venv\Scripts\python.exe"
           $scriptPath = "c:\Users\vibha\Projects\exe_2\scripts\dataset_pipeline.py"
           
-          echo "Running processing script..."
-          & $pythonPath $scriptPath `
-            --preprocess data_repo/preprocess_data `
-            --postprocess data_repo/post_processed_data `
-            --mode full
+          # Get absolute path for the data_repo folder
+          $currentDir = Get-Location
+          $prePath = "$currentDir\data_repo\preprocess_data"
+          $postPath = "$currentDir\data_repo\post_processed_data"
+
+          echo "Current Workspace: $currentDir"
+          echo "Processing data in: $prePath"
+
+          & $pythonPath $scriptPath --preprocess "$prePath" --postprocess "$postPath" --mode full
         shell: pwsh
 
-      - name: Commit and Push results to FairLens
+      - name: Commit and Push results
         run: |
           cd data_repo
           git config user.name "github-actions[bot]"
