@@ -12,14 +12,13 @@ jobs:
 
     steps:
       - name: Checkout Data Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: data_repo
 
       - name: Cleanup and Start Services
         run: |
-          echo "Cleaning up old processes on port 8000 and 8001..."
-          # This kills any existing uvicorn/python processes to start fresh
+          echo "Cleaning up old processes..."
           Get-Process | Where-Object { $_.ProcessName -like "*python*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 
           $apiPath = "c:\Users\vibha\Projects\exe_2\backend\bias_detection_service"
@@ -33,27 +32,24 @@ jobs:
           echo "Starting LLM Service (Port 8001)..."
           cd $llmPath
           Start-Process -FilePath $pythonPath -ArgumentList "-m uvicorn bias_api:app --host 127.0.0.1 --port 8001"
-        shell: pwsh
+        shell: powershell
 
       - name: Wait for Services
         run: Start-Sleep -s 15
-        shell: pwsh
+        shell: powershell
 
       - name: Process Datasets
         run: |
           $pythonPath = "c:\Users\vibha\Projects\exe_2\backend\bias_detection_service\venv\Scripts\python.exe"
           $scriptPath = "c:\Users\vibha\Projects\exe_2\scripts\dataset_pipeline.py"
           
-          # Get absolute path for the data_repo folder
           $currentDir = Get-Location
           $prePath = "$currentDir\data_repo\preprocess_data"
           $postPath = "$currentDir\data_repo\post_processed_data"
 
-          echo "Current Workspace: $currentDir"
-          echo "Processing data in: $prePath"
-
+          echo "Running processing script..."
           & $pythonPath $scriptPath --preprocess "$prePath" --postprocess "$postPath" --mode full
-        shell: pwsh
+        shell: powershell
 
       - name: Commit and Push results
         run: |
@@ -69,4 +65,4 @@ jobs:
           } else {
               echo "No changes to commit"
           }
-        shell: pwsh
+        shell: powershell
