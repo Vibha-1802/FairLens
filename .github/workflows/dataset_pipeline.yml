@@ -39,12 +39,11 @@ jobs:
           git add .
           $status = git status --porcelain
           if ($status) {
-              git commit -m "Auto-processed datasets (Local Self-Hosted)"
+              git commit -m "Auto-processed datasets (Local Self-Hosted) [skip ci]"
               
-              echo "Pulling latest changes to avoid conflicts..."
-              git pull --rebase origin main
-              
-              echo "Pushing results..."
-              git push origin HEAD:main
+              echo "Force pushing results to avoid conflicts..."
+              # Using --force to ensure the results always make it to GitHub
+              git push origin HEAD:main --force
           }
         shell: powershell
+
