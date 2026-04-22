@@ -15,18 +15,18 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: data_repo
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # We don't need the token here if we use your local git
+          persist-credentials: false 
 
       - name: Cleanup and Start Services
         run: |
-          echo "Stopping old processes..."
+          echo "Restarting services..."
           Get-Process | Where-Object { $_.ProcessName -like "*python*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 
           $apiPath = "c:\Users\vibha\Projects\exe_2\backend\bias_detection_service"
           $llmPath = "c:\Users\vibha\Projects\exe_2\backend\LLM\api"
           $pythonPath = "$apiPath\venv\Scripts\python.exe"
 
-          echo "Starting API and LLM..."
           cd $apiPath
           Start-Process -FilePath $pythonPath -ArgumentList "-m uvicorn app.main:app --host 127.0.0.1 --port 8000"
           cd $llmPath
@@ -49,20 +49,17 @@ jobs:
         shell: powershell
 
       - name: Commit and Push results
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd data_repo
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Use the token for authentication in the push
-          git remote set-url origin "https://x-access-token:${env:GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          # Use YOUR local git identity
+          git config --local user.name "Vibha-1802"
+          git config --local user.email "vibha.1802@gmail.com"
           
           git add .
           $status = git status --porcelain
           if ($status) {
               git commit -m "Auto-processed datasets (Local Self-Hosted)"
-              git push origin HEAD:${{ github.ref_name }}
+              # This will use your stored Windows credentials
+              git push origin HEAD:main
           }
         shell: powershell
